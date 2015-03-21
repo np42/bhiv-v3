@@ -495,7 +495,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
         sanitize.method = function (data) {
           if (Object.prototype.toString.call(data) === '[object Object]') {
             var output = Bhiv.extract(value);
-            if (output && typeof output === 'object') output = {};
+            if (!(output && typeof output === 'object')) output = {};
             for (var i in data)
               if (data.hasOwnProperty(i))
                 output[i] = data[i];
