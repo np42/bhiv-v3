@@ -24,9 +24,9 @@
     "method"
   ],
   "author": "Nicolas Pelletier",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/bhiv/bihv/issues"
   },
-  "homepage": "https://github.com/bhiv/bihv"
+  "homepage": "https://github.com/bhiv/bhiv"
 }

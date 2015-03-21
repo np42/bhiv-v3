@@ -5,15 +5,17 @@ Bhiv is a utility module which provide a complete syntax to build an asynchronou
 It provides also some basic features like EventEmitter, Object manipulation, or basic functions patterns.
 It works on any side
 
-## Dependency Injection (Development Only):
+## Install (Development Only):
 
 `javascript:(function(s){document.head.append(s);e.src='https://rawgit.com/bhiv/bhiv/master/Bhiv.js';})(document.createElement('script'));`
 
 ```html
 <script src="https://rawgit.com/bhiv/bhiv/master/Bhiv.js"></script>
+```
 
 ```sh
 npm install --save bhiv
+```
 
 ## Browser Multi Fetching Exemple
 ```javascript
@@ -49,9 +51,10 @@ var fetchAllJsonpUrl = (function () {
 
 })();
 
-fetchJsonpUrl({ github: 'https://api.github.com', ip: 'http://jsonip.com' }, function (err, data) {
-  console.log(err, data);
-});
+fetchJsonpUrl
+( { github: 'https://api.github.com', ip: 'http://jsonip.com' }
+, function (err, data) { console.log(err, data); }
+);
 ```
 
 ## Node Module Example
