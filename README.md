@@ -7,7 +7,7 @@ It works on any side
 
 ## Install (Development Only):
 
-`javascript:(function(s){document.head.append(s);e.src='https://rawgit.com/bhiv/bhiv/master/Bhiv.js';})(document.createElement('script'));`
+`javascript:(function(s){document.head.appendChild(s);s.src='https://rawgit.com/bhiv/bhiv/master/Bhiv.js';})(document.createElement('script'));`
 
 ```html
 <script src="https://rawgit.com/bhiv/bhiv/master/Bhiv.js"></script>
@@ -51,7 +51,7 @@ var fetchAllJsonpUrl = (function () {
 
 })();
 
-fetchJsonpUrl
+fetchAllJsonpUrl
 ( { github: 'https://api.github.com', ip: 'http://jsonip.com' }
 , function (err, data) { console.log(err, data); }
 );
