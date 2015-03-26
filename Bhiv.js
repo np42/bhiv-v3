@@ -1,6 +1,6 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.15
+ *  Version: 3.1.16
  *  Date: 2015-03-13T18:52:49+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
@@ -412,8 +412,13 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
                 space.running -= 1;
                 space.done += 1;
                 if (error) return initialRuntime.callback.pop()(failure = error, initialRuntime);
-                result = Bhiv.merge(result, runtime.data, false);
-                return loop(parallel, space, initialRuntime);
+                if (parallel.fromMap) {
+                  initialRuntime.data = runtime.data;
+                  return loop(parallel, space, initialRuntime);
+                } else {
+                  result = Bhiv.merge(result, runtime.data, false);
+                  return loop(parallel, space, initialRuntime);
+                }
               });
               return task.execute(newRuntime);
             })(parallel.tasks[space.done + space.running]);
@@ -444,6 +449,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       var parallel = new Task.Parallel();
       parallel.max = this.max;
       parallel.replace = false;
+      parallel.fromMap = true;
       var source = typeof this.source === 'string'
         ? Bhiv.getIn(runtime.data, this.source)
         : this.source;
@@ -924,8 +930,8 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     // create a new map
     var map    = new Task.Map();
     map.source = source;
-    map.key    = key || 'key';
-    map.value  = value || 'value';
+    map.key    = key || null;
+    map.value  = value || null;
 
     if (this._breadcrumb.has(Task.Concurent))
       map.max = 1;
