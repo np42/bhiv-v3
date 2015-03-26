@@ -383,7 +383,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     /* Parallel */
     this.Parallel = function ParallelTask(max) {
       this.type    = ParallelTask;
-      this.id      = Bhiv.generateId('Bhiv.Task.Parallel');
       this.tasks   = [];
       this.max     = max || Infinity;
       this.replace = false;
@@ -419,7 +418,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
               return task.execute(newRuntime);
             })(parallel.tasks[space.done + space.running]);
         }
-      })(this, initialRuntime.temp[this.id], initialRuntime);
+      })(this, this.newTemp(), initialRuntime);
     };
 
     this.Parallel.prototype.newTemp = function () {
@@ -445,7 +444,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       var parallel = new Task.Parallel();
       parallel.max = this.max;
       parallel.replace = false;
-      runtime.temp[parallel.id] = parallel.newTemp();
       var source = typeof this.source === 'string'
         ? Bhiv.getIn(runtime.data, this.source)
         : this.source;
@@ -956,7 +954,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     } else {
       // create a new parallel
       var parallel = new Task.Parallel();
-      this._temp[parallel.id] = parallel.newTemp();
       parallel.tasks.push(task);
 
       if (this._breadcrumb.has(Task.Waterfall, [Task.Parallel])) {
@@ -1371,6 +1368,8 @@ Bhiv.EventEmitter = function () {
   var ee = this;
   var handles = {};
   var parent = null;
+
+  this.id = Bhiv.generateId();
 
   this.on = function (event, listener) {
     if (!handles[event]) handles[event] = [];
