@@ -250,10 +250,10 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       if (runtime.status.aborted)
         return runtime.callback.pop()(Bhiv.Error('Aborted at: ' + runtime.id), runtime);
       this.lookup(runtime, function (error) {
-        if (error) return runtime.callback.pop()(error, runtime);
+        if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
         var data = async.prepare(runtime);
         return async.method.call(data.context, data.input, function (error, output) {
-          if (error) return runtime.callback.pop()(error, runtime);
+          if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
           if (arguments.length === 2) async.insertOutput(runtime, output);
           return runtime.callback.pop()(null, runtime);
         });
@@ -345,7 +345,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       if (runtime.status.aborted)
         return runtime.callback.pop()(Bhiv.Error('Aborted at: ' + runtime.id), runtime);
       this.lookup(runtime, function (error) {
-        if (error) return runtime.callback.pop()(error, runtime);
+        if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
         var data = sync.prepare(runtime);
         try {
           var output = sync.method.call(data.context, data.input);
@@ -372,7 +372,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
           return runtime.callback.pop()(null, runtime);
         } else {
           runtime.callback.push(function WaterfallCallback(error, runtime) {
-            if (error) return runtime.callback.pop()(error, runtime);
+            if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
             return loop(waterfall, index + 1, runtime);
           });
           return waterfall.tasks[index].execute(runtime);
@@ -411,7 +411,10 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
               newRuntime.callback.push(function ParallelCallback(error, runtime) {
                 space.running -= 1;
                 space.done += 1;
-                if (error) return initialRuntime.callback.pop()(failure = error, initialRuntime);
+                if (error) {
+                  failure = error;
+                  return (initialRuntime.callback.pop() || Bhiv.noop)(error, initialRuntime);
+                }
                 if (parallel.fromMap) {
                   initialRuntime.data = runtime.data;
                   return loop(parallel, space, initialRuntime);
@@ -467,7 +470,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       }
       var newRuntime = runtime.fork();
       newRuntime.callback.push(function (error) {
-        if (error) return runtime.callback.pop()(error, runtime);
+        if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
         if (!map.absolute) {
           if (map.replace) {
             if (map.source === '.') {
