@@ -320,7 +320,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
         runtime.data = alpha;
       } else {
         var holder = runtime.data instanceof Object ? Object.create(runtime.data) : runtime.data;
-        runtime.data = Bhiv.merge(holder, alpha);
+        runtime.data = Bhiv.merge(holder, alpha, true);
       }
     };
 
