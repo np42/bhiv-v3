@@ -41,9 +41,9 @@ var fetchAllJsonpUrl = (function () {
     .  then('= console.log')
 
     // requesting and storing the result into the content field
-    .  then('jQuery.request', null, { 'content': '${.}' })
+    .  then('jQuery.request', null, { url: '${url}', content: '${.}' })
 
-    // closing the loop (created by the Map keyword
+    // closing the loop (created by the Map keyword, limit parallel execute to 3 tasks)
     .close({ max: 3 })
 
     // finishing the workflow build

@@ -1,6 +1,6 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.16
+ *  Version: 3.1.17
  *  Date: 2015-03-13T18:52:49+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
@@ -470,7 +470,11 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
         if (error) return runtime.callback.pop()(error, runtime);
         if (!map.absolute) {
           if (map.replace) {
-            Bhiv.setIn(runtime.data, map.source, result);
+            if (map.source === '.') {
+              runtime.data = result;
+            } else {
+              Bhiv.setIn(runtime.data, map.source, result);
+            }
           } else {
             throw Bhiv.Error('Not implemented');
           }

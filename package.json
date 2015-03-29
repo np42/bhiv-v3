@@ -1,6 +1,6 @@
 {
   "name": "bhiv",
-  "version": "3.1.16",
+  "version": "3.1.17",
   "description": "Extended asynchronous execution controller with composer syntax",
   "main": "Bhiv.js",
   "scripts": {
@@ -8,11 +8,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/bhiv/bihv.git"
+    "url": "https://github.com/np42/bihv.git"
   },
   "keywords": [
     "async",
     "asynchronous",
+    "callback",
+    "promise",
     "workflow",
     "fbp",
     "serie",
@@ -26,7 +28,7 @@
   "author": "Nicolas Pelletier",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/bhiv/bihv/issues"
+    "url": "https://github.com/np42/bihv/issues"
   },
-  "homepage": "https://github.com/bhiv/bhiv"
+  "homepage": "https://github.com/np42/bhiv"
 }
