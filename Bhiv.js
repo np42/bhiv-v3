@@ -1,6 +1,6 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.17
+ *  Version: 3.1.18
  *  Date: 2015-03-13T18:52:49+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
@@ -42,8 +42,6 @@
  *      - Trap(<pattern>, <work>, <inglue>, <outglue>): do <work> if an error match <pattern>
  *      - Map(<path>, <key>, <value>): iter on <path> and do work for each elements
  *        -> replace the old list value by result
- *      - Each(<path>, <key>, <value>): iter on <path> and do work for each elements
- *        -> merge the result with root path
  *      - Go(<work>, <inglue>, <outglue>): create a une parallel waterfall
  *      - close(<properties>): close task, and set properties
  *      - emit(<event>, <data>): to emit an event (maybe catched by a bucket)
@@ -441,106 +439,58 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       this.value    = null;
       this.task     = new Task.Waterfall();
       this.max      = Infinity;
-      this.absolute = false;
-      this.replace  = true;
     };
 
     this.Map.prototype = new this.Concurent();
 
     this.Map.prototype.execute = function (runtime) {
-      var map = this;
-      var parallel = new Task.Parallel();
-      parallel.max = this.max;
-      parallel.replace = false;
-      parallel.fromMap = true;
-      var source = typeof this.source === 'string'
-        ? Bhiv.getIn(runtime.data, this.source)
-        : this.source;
+      if (!runtime.data || typeof runtime.data !== 'object')
+        if (error) return runtime.callback.pop()(null, runtime);
+
+      var map    = this;
+      var space  = { done: 0, running: 0, tasks: [], failed: null, result: null };
+      var source = Bhiv.getIn(runtime.data, map.source);
       if (source instanceof Array) {
-        var result = [];
+        space.result = [];
         for (var i = 0; i < source.length; i++)
-          parallel.tasks.push(map.makeTask(i, source[i], runtime.data, result));
-      } else if (source instanceof Object) {
-        var result = {};
+          space.tasks.push({ key: i, value: source[i] });
+      } else if (source && typeof source === 'object') {
+        space.result = {};
         for (var i in source)
-          if (source.hasOwnProperty(i))
-            parallel.tasks.push(map.makeTask(i, source[i], runtime.data, result));
+          space.tasks.push({ key: i, value: source[i] });
       } else {
         return runtime.callback.pop()(null, runtime);
       }
-      var newRuntime = runtime.fork();
-      newRuntime.callback.push(function (error) {
-        if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
-        if (!map.absolute) {
-          if (map.replace) {
-            if (map.source === '.') {
-              runtime.data = result;
-            } else {
-              Bhiv.setIn(runtime.data, map.source, result);
-            }
-          } else {
-            throw Bhiv.Error('Not implemented');
+      return (function loop(space, runtime) {
+        if (space.running < 1 && space.tasks.length < 1) {
+          if (!map.source || map.source === '.')
+            runtime.data = space.result;
+          else
+            Bhiv.setIn(runtime.data, map.source, space.result);
+          return runtime.callback.pop()(null, runtime);
+        }
+        if (space.running >= map.max || space.tasks.length < 1) return ;
+        space.running += 1;
+        var task = space.tasks.shift();
+        var newRuntime = runtime.fork(false);
+        var iterator = Object.create(runtime.data);
+        if (typeof map.key === 'string') iterator[map.key] = task.key;
+        if (typeof map.value === 'string') iterator[map.value] = task.value;
+        newRuntime.data = Object.create(iterator);
+        newRuntime.callback.push(function (error, newRuntime) {
+          space.running -= 1;
+          space.done += 1;
+          if (space.failed) return ;
+          if (error) {
+            task.error = error;
+            space.failed = task;
+            return runtime.callback.pop()(task, runtime);
           }
-        }
-        return runtime.callback.pop()(null, runtime);
-      });
-      return parallel.execute(newRuntime);
-    };
-
-    this.Map.prototype.makeTask = function (key, value, root, result) {
-      var map = this;
-      var prepare = new Task.Synchronous();
-      prepare.replace = true;
-      prepare.method = function (data) {
-        data = Object.create(data);
-        if (map.key != null) Bhiv.setIn(data, map.key, key);
-        if (map.value != null) Bhiv.setIn(data, map.value, value);
-        return data;
-      };
-      var sanitize = new Task.Synchronous();
-      if (this.absolute) {
-        sanitize.method = function (data) {
-          return Bhiv.merge(root, data, false);
-        };
-      } else {
-        sanitize.method = function (data) {
-          if (Object.prototype.toString.call(data) === '[object Object]') {
-            var output = Bhiv.extract(value);
-            if (!(output && typeof output === 'object')) output = {};
-            for (var i in data)
-              if (data.hasOwnProperty(i))
-                output[i] = data[i];
-          } else {
-            output = data;
-          }
-          result[key] = output;
-        };
-      }
-      var waterfall = this.task.clone();
-      waterfall.tasks.unshift(prepare);
-      waterfall.tasks.push(sanitize);
-      return waterfall;
-    };
-
-    this.Map.prototype.collapseResult = function (result) {
-      var holder = {};
-      if (result instanceof Array) {
-        for (var i = 0; i < result.length; i++) {
-          if (result[i] == null) continue ;
-          holder = Bhiv.merge(holder, result[i], false);
-        }
-      } else {
-        for (var i in result) {
-          if (result[i] == null) continue ;
-          holder = Bhiv.merge(holder, result[i], false);
-        }
-      }
-      return holder;
-    };
-
-    this.Map.prototype.output = function (holder, result) {
-      if (this.replace) return result;
-      return Bhiv.merge(holder, result);
+          space.result[task.key] = newRuntime.data;
+          return loop(space, runtime);
+        });
+        return map.task.execute(newRuntime);
+      })(space, runtime);
     };
 
     /* Trap */
@@ -934,7 +884,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
 
   /* .Map */
   this.Bee.prototype.Map = function (source, key, value) {
-    // create a new map
     var map    = new Task.Map();
     map.source = source;
     map.key    = key || null;
@@ -945,13 +894,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
 
     this.then(map);
     this._breadcrumb.add(map.task);
-    return this;
-  };
-
-  this.Bee.prototype.Each = function (source, key, value) {
-    this.Map(source, key, value);
-    var map = this._breadcrumb.get(Task.Map);
-    map.absolute = true;
     return this;
   };
 
