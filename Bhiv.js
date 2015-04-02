@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
  *  Version: 3.1.18
- *  Date: 2015-03-13T18:52:49+01:00
+ *  Date: 2015-04-02T18:52:49+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -9,6 +9,8 @@
  *  Flags: @preserve
  */
 /**
+ *  Pronounced: /bi hajv/ "Bee Hive"
+ *
  *  Hello world:
  *    1. var bhiv = new Bhiv();
  *    2. var func = new bhiv.Bee().then(function (d, c) { return c(null, 'hello '+d) }).end();
@@ -184,6 +186,8 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
   /* Bhiv Tasks Declation */
 
   var Task = new function () {
+    var Task = this;
+
     /* Simple */
 
     this.Simple = function SimpleTask() { this.type = SimpleTask; };
@@ -250,11 +254,11 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       this.lookup(runtime, function (error) {
         if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
         var data = async.prepare(runtime);
-        return async.method.call(data.context, data.input, function (error, output) {
-          if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
+        return async.method.call(data.context, data.input, Bhiv.callTimes(function (error, output) {
+          if (error) return (runtime.callback.pop() || Bhiv.noop)(Bhiv.Error(error), runtime);
           if (arguments.length === 2) async.insertOutput(runtime, output);
           return runtime.callback.pop()(null, runtime);
-        });
+        }));
       });
     };
 
@@ -281,9 +285,10 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       var async = this;
       options.require(this.fsn, function (err, module) {
         if (err) return callback(err);
-        if (module == null) debugger;
-        if (module == null)
+        if (module == null) {
+          debugger;
           return callback(Bhiv.Error('method not found: ' + async.fsn, 'ERRFNNOTFOUND'));
+        }
         if (typeof module === 'function') {
           async.method = module;
         } else if (typeof module.method === 'function') {
@@ -317,8 +322,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       if (this.replace) {
         runtime.data = alpha;
       } else {
-        var holder = runtime.data instanceof Object ? Object.create(runtime.data) : runtime.data;
-        runtime.data = Bhiv.merge(holder, alpha, true);
+        runtime.data = Bhiv.merge(runtime.data, alpha, true);
       }
     };
 
@@ -391,6 +395,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     this.Parallel.prototype.execute = function (initialRuntime) {
       var failure = null;
       var result = null;
+      var space = { done: 0, running: 0 };
       return (function loop(parallel, space, runtime) {
         if (failure) {
           return ; // kill the loop
@@ -424,11 +429,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
               return task.execute(newRuntime);
             })(parallel.tasks[space.done + space.running]);
         }
-      })(this, this.newTemp(), initialRuntime);
-    };
-
-    this.Parallel.prototype.newTemp = function () {
-      return { done: 0, running: 0 };
+      })(this, space, initialRuntime);
     };
 
     /* Map */
@@ -446,12 +447,11 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     this.Map.prototype.execute = function (runtime) {
       if (!runtime.data || typeof runtime.data !== 'object')
         if (error) return runtime.callback.pop()(null, runtime);
-
       var map    = this;
-      var space  = { done: 0, running: 0, tasks: [], failed: null, result: null };
+      var space  = { done: 0, running: 0, tasks: [], failure: null, result: null };
       var source = Bhiv.getIn(runtime.data, map.source);
       if (source instanceof Array) {
-        space.result = [];
+        space.result = new Array(source.length);
         for (var i = 0; i < source.length; i++)
           space.tasks.push({ key: i, value: source[i] });
       } else if (source && typeof source === 'object') {
@@ -461,36 +461,79 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       } else {
         return runtime.callback.pop()(null, runtime);
       }
-      return (function loop(space, runtime) {
-        if (space.running < 1 && space.tasks.length < 1) {
-          if (!map.source || map.source === '.')
-            runtime.data = space.result;
-          else
-            Bhiv.setIn(runtime.data, map.source, space.result);
-          return runtime.callback.pop()(null, runtime);
+      return this.loop(runtime, space);
+    };
+
+    this.Map.prototype.loop = function (runtime, space) {
+      var map = this;
+      if (space.running < 1 && space.tasks.length < 1)
+        return this.returns(runtime, space);
+      if (space.running >= map.max || space.tasks.length < 1) return ;
+      space.running += 1;
+      var task = space.tasks.shift();
+      var newRuntime = runtime.fork(false);
+      var iterator = Object.create(runtime.data);
+      if (typeof map.key === 'string') iterator[map.key] = task.key;
+      if (typeof map.value === 'string') iterator[map.value] = task.value;
+      newRuntime.data = Object.create(iterator);
+      newRuntime.callback.push(function (error, newRuntime) {
+        space.running -= 1;
+        space.done += 1;
+        if (space.failure) return ;
+        if (error) {
+          task.error = error;
+          space.failure = task;
+          return runtime.callback.pop()(task, runtime);
         }
-        if (space.running >= map.max || space.tasks.length < 1) return ;
-        space.running += 1;
-        var task = space.tasks.shift();
-        var newRuntime = runtime.fork(false);
-        var iterator = Object.create(runtime.data);
-        if (typeof map.key === 'string') iterator[map.key] = task.key;
-        if (typeof map.value === 'string') iterator[map.value] = task.value;
-        newRuntime.data = Object.create(iterator);
-        newRuntime.callback.push(function (error, newRuntime) {
-          space.running -= 1;
-          space.done += 1;
-          if (space.failed) return ;
-          if (error) {
-            task.error = error;
-            space.failed = task;
-            return runtime.callback.pop()(task, runtime);
+        map.processResult(runtime, space, task, newRuntime.data);
+        return map.loop(runtime, space);
+      });
+      map.task.execute(newRuntime);
+      return space.tasks.length <= 0 ? Bhiv.noop() : this.loop(runtime, space);
+    };
+
+    this.Map.prototype.returns = function (runtime, space) {
+      if (!this.source || this.source === '.')
+        runtime.data = space.result;
+      else
+        Bhiv.setIn(runtime.data, this.source, space.result);
+      return runtime.callback.pop()(null, runtime);
+    };
+
+    this.Map.prototype.processResult = function (runtime, space, task, data) {
+      if (data && typeof data === 'object') {
+        if (data.contructor === Array) {
+          return space.result[task.key] = data.slice();
+        } else {
+          var record = task.value  && typeof task.value === 'object' ? Object.create(task.value) : {};
+          var altered = false;
+          for (var key in data) {
+            if (data.hasOwnProperty(key)) {
+              record[key] = data[key];
+              altered = true;
+            }
           }
-          space.result[task.key] = newRuntime.data;
-          return loop(space, runtime);
-        });
-        return map.task.execute(newRuntime);
-      })(space, runtime);
+          if (!altered) return space.result[task.key] = task.value;
+          return space.result[task.key] = record;
+        }
+      }
+      return space.result[task.key] = data;
+    };
+
+    /* Each */
+    this.Each = function EachTask() {
+      this.type = EachTask;
+      this.task = new Task.Waterfall();
+    };
+
+    this.Each.prototype = new this.Map();
+
+    this.Each.prototype.processResult = function (runtime, space, task, data) {
+      runtime.data = Bhiv.merge(runtime.data, data);
+    };
+
+    this.Each.prototype.returns = function (runtime, space) {
+      return runtime.callback.pop()(null, runtime);
     };
 
     /* Trap */
@@ -519,7 +562,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     };
 
     /* Merge */
-
     this.Merge = function MergeTask(glue) {
       this.type    = MergeTask;
       this.glue    = glue || null;
@@ -535,7 +577,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     };
 
     /* Bucket */
-
     this.Bucket = function TaskBucket(event, outglue) {
       this.type      = TaskBucket;
       this.id        = Bhiv.generateId('Bhiv.Task.Bucket');
@@ -579,6 +620,16 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       }
       return runtime.callback.pop()(null, runtime);
     };
+
+    /***************/
+    for (var constructor in this) {
+      if (typeof this[constructor] !== 'function') continue ;
+      this[constructor].valueOf = (function (name) {
+        var constructorName = '[BhivTask ' + name + ']';
+        return function () { return constructorName; };
+      })(constructor);
+    }
+
   };
 
   /***************/
@@ -657,16 +708,15 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
   };
 
   Runtime.prototype.fork = function (keepCallbacks) {
-    var runtime = new Runtime();
-    for (var key in this)
-      if (this.hasOwnProperty(key))
-        runtime[key] = this[key];
+    var runtime = new Runtime(this.id);
+    for (var key in this) {
+      if (!this.hasOwnProperty(key)) continue ;
+      if (key in runtime) continue ;
+      runtime[key] = this[key];
+    }
     if (runtime.data instanceof Object)
       runtime.data = Object.create(runtime.data);
-    if (keepCallbacks)
-      runtime.callback = this.callback;
-    else
-      runtime.callback = [];
+    runtime.callback = keepCallbacks ? this.callback : [];
     return runtime;
   };
 
@@ -717,7 +767,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
   };
 
   /* Bee */
-  this.Bee = function (_runtime) {
+  this.Bee = function Bee(_runtime) {
     if (!_runtime) _runtime = {};
 
     var bee     = this;
@@ -745,12 +795,8 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
 
     this._finalize = function () {
       delete this._breadcrumb;
-      var bee = this;
-      [ 'then', 'Go', 'Trap', 'trap', 'close', 'add', 'Map'
-      , 'bucket', 'extract', 'keep', 'debug', 'dump', 'wait'
-      ].map(function (keyword) {
-        bee[keyword]   = functionFinalized;
-      });
+      for (var keyword in Bee.prototype)
+        bee[keyword] = functionFinalized;
     };
 
     this._ready = function (status) {
@@ -897,6 +943,21 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     return this;
   };
 
+  /* .Each */
+  this.Bee.prototype.Each = function (source, key, value) {
+    var each    = new Task.Each();
+    each.source = source;
+    each.key    = key || null;
+    each.value  = value || null;
+
+    if (this._breadcrumb.has(Task.Concurent))
+      each.max = 1;
+
+    this.then(each);
+    this._breadcrumb.add(each.task);
+    return this;
+  };
+
   /* .Go */
   this.Bee.prototype.Go = parseTaskPipe(function (task) {
     if (this._breadcrumb.has(Task.Parallel)) {
@@ -1027,6 +1088,14 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
   /* .add */
   this.Bee.prototype.add = function (glue) {
     return this.then(new Task.Merge(glue));
+  };
+
+  /* .flatten */
+  this.Bee.prototype.flatten = function () {
+    var task = parseTask(function (data, callback) {
+      return callback(null, Bhiv.flatten(data));
+    });
+    return this.then(task);
   };
 
   /* .dump */
@@ -1251,6 +1320,40 @@ Bhiv.merge = function merge(holder, alpha, deeply) {
   }
 };
 
+Bhiv.flatten = function flatten(data) {
+  switch (Object.prototype.toString.call(data)) {
+  case '[object Object]':
+    var result = {};
+    for (var i in data)
+      result[i] = flatten(data[i]);
+    return result;
+  case '[object Array]':
+    var result = new Array(data.length);
+    for (var i = 0; i < data.length; i++)
+      result[i] = flatten(data[i]);
+    return result;
+  default:
+    return data;
+  }
+};
+
+/*
+Bhiv.orphan = function (data) {
+  switch (Object.prototype.toString.call(data)) {
+  case '[object Object]':
+    var result = {};
+    for (var i in data)
+      if (data.hasOwnProperty(i))
+        result[i] = data[i];
+    return result;
+  case '[object Array]':
+    return data.slice();
+  default:
+    return data;
+  }
+};
+*/
+
 Bhiv.throttleCache = function (method, cache) {
   var throttled = Bhiv.throttle(method);
   return function (data, callback) {
@@ -1389,4 +1492,13 @@ Bhiv.makeListener = function (pool) {
   };
 
   return listener;
+};
+
+Bhiv.callTimes = function (fn, times) {
+  if (!(times > 0)) times = 1;
+  return function () {
+    if (times <= 0) throw Bhiv.Error('This function has already called max times');
+    times -= 1;
+    return fn.apply(this, arguments);
+  };
 };
