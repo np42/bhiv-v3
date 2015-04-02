@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/np42/bihv.git"
+    "url": "https://github.com/np42/bhiv.git"
   },
   "keywords": [
     "async",
@@ -28,7 +28,7 @@
   "author": "Nicolas Pelletier",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/np42/bihv/issues"
+    "url": "https://github.com/np42/bhiv/issues"
   },
   "homepage": "https://github.com/np42/bhiv"
 }
