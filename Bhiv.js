@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.19
- *  Date: 2015-04-02T18:52:49+01:00
+ *  Version: 3.1.20
+ *  Date: 2015-04-21T19:33:49+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -322,7 +322,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       if (this.replace) {
         runtime.data = alpha;
       } else {
-        runtime.data = Bhiv.merge(runtime.data, alpha, true);
+        runtime.data = Bhiv.merge(runtime.data, alpha, true, true);
       }
     };
 
@@ -1288,19 +1288,27 @@ Bhiv.extract = function extract(glue, alpha) {
   }
 };
 
-Bhiv.merge = function merge(holder, alpha, deeply) {
+Bhiv.merge = function merge(holder, alpha, deeply, noconcat) {
   if (deeply == null) deeply = true;
+  if (deeply == null) noconcat = false;
   switch (Object.prototype.toString.call(alpha)) {
   case '[object Array]': case '[object Arguments]':
     if (deeply) {
       var result = new Array(alpha.length);
-      for (var i = 0; i < alpha.length; i++)
-        result[i] = (holder && holder[i] != null) ? merge(holder[i], alpha[i], deeply) : alpha[i];
+      for (var i = 0; i < alpha.length; i++) {
+        result[i] = (holder && holder[i] != null)
+          ? merge(holder[i], alpha[i], deeply, noconcat)
+          : alpha[i];
+      }
       return result;
-    } else {
+    } else if (!noconcat) {
       if (!(holder instanceof Array)) return alpha.slice();
       if (alpha === holder) return alpha;
       return holder.concat(alpha);
+    } else {
+      if (!(holder instanceof Array)) return alpha.slice();
+      if (alpha === holder) return alpha;
+      return alpha;
     }
   case '[object Object]':
     if (alpha.constructor !== Object) {
@@ -1309,8 +1317,11 @@ Bhiv.merge = function merge(holder, alpha, deeply) {
       var isObject = holder && holder.constructor === Object;
       var result = isObject ? holder : {};
       for (var i in alpha)
-        if (deeply || alpha.hasOwnProperty(i))
-          result[i] = (holder && holder[i] != null) ? merge(holder[i], alpha[i], deeply) : alpha[i];
+        if (deeply || alpha.hasOwnProperty(i)) {
+          result[i] = (holder && holder[i] != null)
+            ? merge(holder[i], alpha[i], deeply, noconcat)
+            : alpha[i];
+        }
       return result;
     }
   case '[object Undefined]':

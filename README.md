@@ -3,13 +3,17 @@
 Bhiv is a utility module which provide a complete syntax to build an asynchronous workflow.
 
 It provides also some basic features like EventEmitter, Object manipulation, or basic functions patterns.
+
 It works on any side
 
-## Install (Development Only):
+## Test:
 
 `javascript:(function(s){document.head.appendChild(s);s.src='https://rawgit.com/bhiv/bhiv/master/Bhiv.js';})(document.createElement('script'));`
 
+## Install:
+
 ```html
+<!-- This is not a CDN so don't use it in production -->
 <script src="https://rawgit.com/bhiv/bhiv/master/Bhiv.js"></script>
 ```
 
@@ -19,7 +23,7 @@ npm install --save bhiv
 
 ## Browser Multi Fetching Exemple
 ```javascript
-// Assaming jQuery & Bhiv loaded
+// Assuming jQuery & Bhiv loaded
 
 var fetchAllJsonpUrl = (function () {
   var priv = { jQuery: {}, console: {} };
@@ -70,7 +74,7 @@ module.exports = new function () {
   this.sayHello = new bhiv.Bee()
     .pipe('= getData', null, { words: '${.}' })
     .Map('words', null, 'word')
-    .pipe('= uppercase', '${word}')
+    .  pipe('= uppercase', '${word}')
     .close()
     .pipe('= join', '${words}')
     .end();
@@ -92,5 +96,26 @@ module.exports = new function () {
   }).call(priv);
 
 };
+```
 
 ## See full syntax documentation into source code at Bee Builder Syntax
+
+Some methods:
+
+ * Trap(<pattern>, <work>, <inglue>, <outglue>): do <work> if an error match <pattern>
+ * Map(<path>, <key>, <value>): iter on <path> and do work for each elements
+ *  -> replace the old list value by result
+ * Go(<work>, <inglue>, <outglue>): create a une parallel waterfall
+ * close(<properties>): close task, and set properties
+ * emit(<event>, <data>): to emit an event (maybe catched by a bucket)
+ * add(<glue>): allow you to add some thing in the flow
+ * flatten(): flatten an inherited data structure
+ * pipe(<work>, <inglue>, <outglue>): execute a task after the previous one if any
+ *  -> replace the result
+ * then(<work>, <inglue>, <outglue>): execute a task after the previous one if any
+ *  -> merge the result
+ * waterfall(<tasks>): do all tasks sequencially, with data replacing the previous one
+ * bucket(<event>, <outglue>, <end>): retrieve data for an <event> even until the <end> event
+ * extract(<glue>): extract <glue> pattern from data and keep only it
+ * keep(<fields>): keep only field list
+ * end(<data>, <callback>): execute the bee or wrap either the <data> or the <callback>

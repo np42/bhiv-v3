@@ -1,6 +1,6 @@
 {
   "name": "bhiv",
-  "version": "3.1.19",
+  "version": "3.1.20",
   "description": "Extended asynchronous execution controller with composer syntax",
   "main": "Bhiv.js",
   "scripts": {
