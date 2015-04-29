@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.21
- *  Date: 2015-04-29T12:00:00+01:00
+ *  Version: 3.1.22
+ *  Date: 2015-04-29T16:00:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -1241,7 +1241,8 @@ Bhiv.extract = function extract(glue, alpha) {
           for (var j = 0; j < alpha.length; j++) {
             var key = extract(i, alpha[j]);
             var value = extract(glue[i], alpha[j]);
-            result[key] = Bhiv.ingest(result[key], value);
+            debugger;
+            result[key] = Bhiv.merge(result[key], value);
           }
         } else {
           var key = extract(i, alpha);
@@ -1322,13 +1323,8 @@ Bhiv.ingest = function ingest(holder, alpha) {
 Bhiv.merge = function merge(holder, alpha) {
   switch (Object.prototype.toString.call(alpha)) {
   case '[object Array]': case '[object Arguments]':
-    var result = new Array(alpha.length);
-    for (var i = 0; i < alpha.length; i++) {
-      result[i] = (holder && holder[i] != null)
-        ? merge(holder[i], alpha[i])
-        : alpha[i];
-    }
-    return result;
+    var result = holder instanceof Array ? holder.slice() : [];
+    return result.concat(alpha);
   case '[object Object]':
     if (alpha.constructor !== Object) {
       return alpha;
@@ -1366,23 +1362,6 @@ Bhiv.flatten = function flatten(data) {
     return data;
   }
 };
-
-/*
-Bhiv.orphan = function (data) {
-  switch (Object.prototype.toString.call(data)) {
-  case '[object Object]':
-    var result = {};
-    for (var i in data)
-      if (data.hasOwnProperty(i))
-        result[i] = data[i];
-    return result;
-  case '[object Array]':
-    return data.slice();
-  default:
-    return data;
-  }
-};
-*/
 
 Bhiv.throttleCache = function (method, cache) {
   var throttled = Bhiv.throttle(method);
