@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.20
- *  Date: 2015-04-21T19:33:49+01:00
+ *  Version: 3.1.21
+ *  Date: 2015-04-29T12:00:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -322,7 +322,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       if (this.replace) {
         runtime.data = alpha;
       } else {
-        runtime.data = Bhiv.merge(runtime.data, alpha, true, true);
+        runtime.data = Bhiv.ingest(runtime.data, alpha);
       }
     };
 
@@ -403,7 +403,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
           if (parallel.replace) {
             initialRuntime.data = result;
           } else {
-            initialRuntime.data = Bhiv.merge(initialRuntime.data, result);
+            initialRuntime.data = Bhiv.ingest(initialRuntime.data, result);
           }
           return initialRuntime.callback.pop()(null, initialRuntime);
         } else {
@@ -422,7 +422,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
                   initialRuntime.data = runtime.data;
                   return loop(parallel, space, initialRuntime);
                 } else {
-                  result = Bhiv.merge(result, runtime.data, false);
+                  result = Bhiv.merge(result, runtime.data);
                   return loop(parallel, space, initialRuntime);
                 }
               });
@@ -554,7 +554,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
           if (!error) return parentCallback(null, runtime);
           if (!Bhiv.match(trap.pattern, error)) return parentCallback(error, runtime);
           runtime.callback.push(parentCallback);
-          runtime.data = Bhiv.merge(runtime.data, { error: error });
+          runtime.data = Bhiv.ingest(runtime.data, { error: error });
           return trap.task.execute(runtime);
         };
       }
@@ -1241,7 +1241,7 @@ Bhiv.extract = function extract(glue, alpha) {
           for (var j = 0; j < alpha.length; j++) {
             var key = extract(i, alpha[j]);
             var value = extract(glue[i], alpha[j]);
-            result[key] = Bhiv.merge(result[key], value, false);
+            result[key] = Bhiv.ingest(result[key], value);
           }
         } else {
           var key = extract(i, alpha);
@@ -1254,7 +1254,7 @@ Bhiv.extract = function extract(glue, alpha) {
           if (result[key] instanceof Array) {
             result[key].push(value);
           } else {
-            result[key] = Bhiv.merge(result[key], value, false);
+            result[key] = Bhiv.ingest(result[key], value);
           }
         } else {
           result[key] = value;
@@ -1288,28 +1288,47 @@ Bhiv.extract = function extract(glue, alpha) {
   }
 };
 
-Bhiv.merge = function merge(holder, alpha, deeply, noconcat) {
-  if (deeply == null) deeply = true;
-  if (deeply == null) noconcat = false;
+Bhiv.ingest = function ingest(holder, alpha) {
   switch (Object.prototype.toString.call(alpha)) {
   case '[object Array]': case '[object Arguments]':
-    if (deeply) {
+    if (holder instanceof Array) {
       var result = new Array(alpha.length);
-      for (var i = 0; i < alpha.length; i++) {
-        result[i] = (holder && holder[i] != null)
-          ? merge(holder[i], alpha[i], deeply, noconcat)
-          : alpha[i];
-      }
+      for (var i = 0; i < alpha.length; i++)
+        result[i] = ingest(holder[i], alpha[i]);
       return result;
-    } else if (!noconcat) {
-      if (!(holder instanceof Array)) return alpha.slice();
-      if (alpha === holder) return alpha;
-      return holder.concat(alpha);
-    } else {
-      if (!(holder instanceof Array)) return alpha.slice();
-      if (alpha === holder) return alpha;
-      return alpha;
     }
+    return alpha;
+  case '[object Object]':
+    if (alpha.constructor !== Object) return alpha;
+    if (!(holder instanceof Object)) return alpha;
+    var result = Object.create(holder.__proto__ || holder);
+    for (var i in alpha) {
+      if (i in holder) result[i] = ingest(holder[i], alpha[i]);
+      else result[i] = alpha[i];
+    }
+    if (holder.constructor !== Object) return result;
+    for (var i in holder) {
+      if (!holder.hasOwnProperty(i)) continue ;
+      if (!result.hasOwnProperty(i)) result[i] = holder[i];
+    }
+    return result;
+  case '[object Undefined]':
+    return holder;
+  default:
+    return alpha;
+  }
+};
+
+Bhiv.merge = function merge(holder, alpha) {
+  switch (Object.prototype.toString.call(alpha)) {
+  case '[object Array]': case '[object Arguments]':
+    var result = new Array(alpha.length);
+    for (var i = 0; i < alpha.length; i++) {
+      result[i] = (holder && holder[i] != null)
+        ? merge(holder[i], alpha[i])
+        : alpha[i];
+    }
+    return result;
   case '[object Object]':
     if (alpha.constructor !== Object) {
       return alpha;
@@ -1317,9 +1336,9 @@ Bhiv.merge = function merge(holder, alpha, deeply, noconcat) {
       var isObject = holder && holder.constructor === Object;
       var result = isObject ? holder : {};
       for (var i in alpha)
-        if (deeply || alpha.hasOwnProperty(i)) {
+        if (alpha.hasOwnProperty(i)) {
           result[i] = (holder && holder[i] != null)
-            ? merge(holder[i], alpha[i], deeply, noconcat)
+            ? merge(holder[i], alpha[i])
             : alpha[i];
         }
       return result;
