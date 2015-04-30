@@ -26,7 +26,7 @@ var fn = new bhiv.Bee()
   fn.call({ locals: { bhiv_2: execute } });
 
   console.log
-  ( Bhiv.extract({ e: { a: 42, b: '${a}', c: '${b}', d: '${a} ${b}' } }, { a: 'hello' }, { b: 'world' })
+  ( Bhiv.extract({ '${a}': { b: '${a}', c: '${b}', d: '${a} ${b}' } }, { a: 'hello' }, { b: 'world' })
   );
 
 })();

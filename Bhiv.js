@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.23
- *  Date: 2015-04-30T18:00:00+01:00
+ *  Version: 3.1.24
+ *  Date: 2015-04-30T21:00:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -254,11 +254,14 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       this.lookup(runtime, function (error) {
         if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
         var data = async.prepare(runtime);
-        return async.method.call(data.context, data.input, Bhiv.callTimes(function (error, output) {
+        var hasResponded = false;
+        return async.method.call(data.context, data.input, function (error, output) {
+          if (hasResponded) throw Bhiv.Error(error || 'Already reponded');
+          hasResponded = true;
           if (error) return (runtime.callback.pop() || Bhiv.noop)(Bhiv.Error(error), runtime);
           if (arguments.length === 2) async.insertOutput(runtime, output);
           return runtime.callback.pop()(null, runtime);
-        }));
+        });
       });
     };
 
@@ -1131,7 +1134,11 @@ Bhiv.Error = function (msg, code) {
   else if (typeof msg === 'string')
     error = new Error(msg);
   var BhivError = function BhivError(code) {
-    if (code) this.code = code;
+    switch (typeof code) {
+    case 'number': case 'string': this.code = code; break ;
+    case 'object': for (var k in code) this[k] = code[k]; break ;
+    }
+    this.getExtra = function () { return code; };
   };
   BhivError.prototype = error;
   return new BhivError(code);
@@ -1253,7 +1260,7 @@ Bhiv.extract = function extract(glue, alpha/*, ...*/) {
           }
         } else {
           var args = Array.prototype.slice.call(arguments);
-          args[0] = j;
+          args[0] = i;
           var key = extract.apply(this, args);
           args[0] = glue[i];
           var value = extract.apply(this, args);
@@ -1524,13 +1531,4 @@ Bhiv.makeListener = function (pool) {
   };
 
   return listener;
-};
-
-Bhiv.callTimes = function (fn, times) {
-  if (!(times > 0)) times = 1;
-  return function () {
-    if (times <= 0) throw Bhiv.Error('This function has already called max times');
-    times -= 1;
-    return fn.apply(this, arguments);
-  };
 };
