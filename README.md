@@ -8,13 +8,13 @@ It works on any side
 
 ## Test:
 
-`javascript:(function(s){document.head.appendChild(s);s.src='https://rawgit.com/bhiv/bhiv/master/Bhiv.js';})(document.createElement('script'));`
+`javascript:(function(s){document.head.appendChild(s);s.src='https://rawgit.com/np42/bhiv/master/Bhiv.js';})(document.createElement('script'));`
 
 ## Install:
 
 ```html
 <!-- This is not a CDN so don't use it in production -->
-<script src="https://rawgit.com/bhiv/bhiv/master/Bhiv.js"></script>
+<script src="https://rawgit.com/np42/bhiv/master/Bhiv.js"></script>
 ```
 
 ```sh
@@ -101,7 +101,7 @@ module.exports = new function () {
 ## See full syntax documentation into source code at Bee Builder Syntax
 
 Some methods:
-
+```
  * Trap(<pattern>, <work>, <inglue>, <outglue>): do <work> if an error match <pattern>
  * Map(<path>, <key>, <value>): iter on <path> and do work for each elements
  *  -> replace the old list value by result
@@ -119,3 +119,4 @@ Some methods:
  * extract(<glue>): extract <glue> pattern from data and keep only it
  * keep(<fields>): keep only field list
  * end(<data>, <callback>): execute the bee or wrap either the <data> or the <callback>
+```
