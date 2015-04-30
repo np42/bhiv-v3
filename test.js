@@ -23,7 +23,10 @@ var fn = new bhiv.Bee()
     }
   };
 
-  fn();
   fn.call({ locals: { bhiv_2: execute } });
+
+  console.log
+  ( Bhiv.extract({ e: { a: 42, b: '${a}', c: '${b}', d: '${a} ${b}' } }, { a: 'hello' }, { b: 'world' })
+  );
 
 })();

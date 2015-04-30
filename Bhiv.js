@@ -313,12 +313,12 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       if (this.inglue == null) {
         return runtime.data;
       } else {
-        return Bhiv.extract(this.inglue, runtime.data);
+        return Bhiv.extract(this.inglue, runtime.data, runtime.locals);
       }
     };
 
     this.Asynchronous.prototype.insertOutput = function (runtime, output) {
-      var alpha = this.outglue == null ? output : Bhiv.extract(this.outglue, output);
+      var alpha = this.outglue == null ? output : Bhiv.extract(this.outglue, output, runtime.data);
       if (this.replace) {
         runtime.data = alpha;
       } else {
@@ -571,7 +571,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     this.Merge.prototype = new this.Simple();
 
     this.Merge.prototype.execute = function (runtime) {
-      var alpha = Bhiv.extract(this.glue, runtime.data);
+      var alpha = Bhiv.extract(this.glue, runtime.data, runtime.locals);
       runtime.data = this.replace ? alpha : Bhiv.merge(runtime.data, alpha);
       return runtime.callback.pop()(null, runtime);
     };
@@ -614,8 +614,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       } else {
         var data = {};
         data[this.event] = chunks;
-        var alpha = Bhiv.extract(this.outglue, data);
-        alpha = Bhiv.extract(alpha, runtime.data);
+        var alpha = Bhiv.extract(this.outglue, data, runtime.data);
         runtime.data = Bhiv.merge(runtime.data, alpha);
       }
       return runtime.callback.pop()(null, runtime);
@@ -1221,8 +1220,10 @@ Bhiv.match = function match(pattern, alpha) {
   }
 };
 
-Bhiv.extract = function extract(glue, alpha) {
+// FIXME: fix multi source searching
+Bhiv.extract = function extract(glue, alpha/*, ...*/) {
   switch (Object.prototype.toString.call(glue)) {
+
   case '[object Array]':
     if (alpha != null) {
       if (!(alpha instanceof Array)) alpha = [alpha];
@@ -1235,9 +1236,11 @@ Bhiv.extract = function extract(glue, alpha) {
       }
     }
     var result = new Array(glue.length);
-    for (var i = 0; i < glue.length; i++)
-      result[i] = extract(glue[i], alpha);
+    var args = Array.prototype.slice.call(arguments);
+    args[0] = glue[i];
+    result[i] = extract.apply(this, args);
     return result;
+
   case '[object Object]':
     var result = {};
     for (var i in glue) {
@@ -1246,16 +1249,21 @@ Bhiv.extract = function extract(glue, alpha) {
           for (var j = 0; j < alpha.length; j++) {
             var key = extract(i, alpha[j]);
             var value = extract(glue[i], alpha[j]);
-            debugger;
             result[key] = Bhiv.merge(result[key], value);
           }
         } else {
-          var key = extract(i, alpha);
-          result[key] = extract(glue[i], alpha);
+          var args = Array.prototype.slice.call(arguments);
+          args[0] = j;
+          var key = extract.apply(this, args);
+          args[0] = glue[i];
+          var value = extract.apply(this, args);
+          result[key] = value;
         }
       } else {
+        var args = Array.prototype.slice.call(arguments);
+        args[0] = glue[i];
         var key = i;
-        var value = extract(glue[i], alpha);
+        var value = extract.apply(this, args);
         if (key in result) {
           if (result[key] instanceof Array) {
             result[key].push(value);
@@ -1268,15 +1276,22 @@ Bhiv.extract = function extract(glue, alpha) {
       }
     }
     return result;
+
   case '[object String]':
     if (alpha == null) return glue;
     var replacement = null;
+    var alphaChain = Array.prototype.slice.call(arguments, 1);
     var result = glue.replace(/(^\$\{[^\}]+\}$)|(\$\{[^\}]+\})/g, function (_, full, partial) {
       if (full) {
-        replacement = Bhiv.getIn(alpha, full.substring(2, full.length - 1));
+        var path = full.substring(2, full.length - 1);
+        for (var i = 0; replacement == null && i < alphaChain.length; i++)
+          replacement = Bhiv.getIn(alphaChain[i], path);
         return '';
       } else {
-        var result = Bhiv.getIn(alpha, partial.substring(2, partial.length - 1));
+        var path = partial.substring(2, partial.length - 1);
+        var result = null;
+        for (var i = 0; result == null && i < alphaChain.length; i++)
+          result = Bhiv.getIn(alphaChain[i], path);
         if (typeof result === 'string') return result;
         return JSON.stringify(result);
       }
@@ -1284,11 +1299,14 @@ Bhiv.extract = function extract(glue, alpha) {
     if (result !== '') return result;
     if (replacement != null) return replacement;
     return glue;
+
   case '[object Date]':
     return new Date(glue.toISOSTring());
+
   case '[object RegExp]':
     var gim = (glue.global ? 'g' : '') + (glue.ignoreCase ? 'i' : '') + (glue.multiline ? 'm' : '');
     return new RegExp(glue.source, gim);
+
   default:
     return glue;
   }
