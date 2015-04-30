@@ -811,9 +811,11 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       var workflow = bee._workflow;
       if (workflow == null) return callback(null, data);
       var runtime = bee._createRuntime(data, callback);
-      for (var k in this.locals)
-        if (!(k in runtime.locals))
-          runtime.locals[k] = this.locals[k];
+      if (this && this.locals) {
+        for (var k in this.locals)
+          if (!(k in runtime.locals))
+            runtime.locals[k] = this.locals[k];
+      }
       if (!ready) {
         onReady.push(function () { workflow.execute(runtime); });
       } else {

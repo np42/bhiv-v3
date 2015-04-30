@@ -23,6 +23,7 @@ var fn = new bhiv.Bee()
     }
   };
 
+  fn();
   fn.call({ locals: { bhiv_2: execute } });
 
 })();
