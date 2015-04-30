@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.22
- *  Date: 2015-04-29T16:00:00+01:00
+ *  Version: 3.1.23
+ *  Date: 2015-04-30T18:00:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -266,7 +266,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       var async = this;
       if (typeof this.method !== 'function') {
         if (typeof this.fsn === 'string')
-          return this.invokeMethod(callback);
+          return this.invokeMethod(runtime, callback);
         else
           return callback(Bhiv.Error('Not enough element to execute this task'));
       } else {
@@ -281,9 +281,9 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       return { context: context, input: input };
     };
 
-    this.Asynchronous.prototype.invokeMethod = function (callback) {
+    this.Asynchronous.prototype.invokeMethod = function (runtime, callback) {
       var async = this;
-      options.require(this.fsn, function (err, module) {
+      options.require.call(runtime, this.fsn, function (err, module) {
         if (err) return callback(err);
         if (module == null) {
           debugger;
@@ -783,10 +783,11 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     this._events = _runtime.events ? Object.create(_runtime.events) : {};
 
     this._createRuntime = function (data, callback) {
-      var runtime = new Runtime(this._id, callback);
+      var runtime      = new Runtime(this._id, callback);
       runtime.status   = _runtime.status || { aborted: false };
       runtime.data     = data;
       runtime.locals   = Object.create(this._locals);
+      runtime.helpers  = {};
       runtime.events   = Object.create(this._events);
       runtime.temp     = Bhiv.extract(this._temp);
       runtime.context  = new Context(runtime);
