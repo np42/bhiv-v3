@@ -787,7 +787,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       runtime.status   = _runtime.status || { aborted: false };
       runtime.data     = data;
       runtime.locals   = Object.create(this._locals);
-      runtime.helpers  = {};
       runtime.events   = Object.create(this._events);
       runtime.temp     = Bhiv.extract(this._temp);
       runtime.context  = new Context(runtime);
@@ -808,10 +807,13 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     };
 
     this._execute = function (data, callback) {
-      if (this._breadcrumb) throw Bhiv.Error('This bee is not finalized');
-      var workflow = this._workflow;
+      if (bee._breadcrumb) throw Bhiv.Error('This bee is not finalized');
+      var workflow = bee._workflow;
       if (workflow == null) return callback(null, data);
-      var runtime = this._createRuntime(data, callback);
+      var runtime = bee._createRuntime(data, callback);
+      for (var k in this.locals)
+        if (!(k in runtime.locals))
+          runtime.locals[k] = this.locals[k];
       if (!ready) {
         onReady.push(function () { workflow.execute(runtime); });
       } else {
@@ -860,17 +862,17 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     this._finalize();
     switch (arguments.length) {
     case 0:
-      return function (data, callback) { return bee._execute(data, callback); };
+      return function (data, callback) { return bee._execute.call(this, data, callback); };
     case 1:
       if (typeof arguments[0] == 'function')
-        return function (data) { return bee._execute(data, callback); };
+        return function (data) { return bee._execute.call(this, data, callback); };
       else
-        return function (callback) { return bee._execute(data, callback); };
+        return function (callback) { return bee._execute.call(this, data, callback); };
     case 2: default:
       if (typeof callback == 'function')
-        return bee._execute(data, callback);
+        return bee._execute.call(this, data, callback);
       else
-        return function (callback) { return bee._execute(data, callback); };
+        return function (callback) { return bee._execute.call(this, data, callback); };
     }
   };
 
@@ -1369,7 +1371,7 @@ Bhiv.throttleCache = function (method, cache) {
   return function (data, callback) {
     if (typeof data !== 'string') throw Bhiv.Error('unable to cache this call');
     if (data in cache) return callback(null, cache[data]);
-    return throttled(data, function (err, result) {
+    return throttled.call(this, data, function (err, result) {
       if (err) return callback(err);
       if (!(data in cache)) cache[data] = result;
       return callback(null, result);
@@ -1383,7 +1385,7 @@ Bhiv.throttle = function (method) {
     if (typeof data !== 'string') throw Bhiv.Error('unable to throttle this call');
     if (pending[data]) return pending[data].push(callback);
     pending[data] = [callback];
-    return method(data, function (err, value) {
+    return method.call(this, data, function (err, value) {
       var listeners = pending[data];
       delete pending[data];
       for (var i = 0; i < listeners.length; i++)
