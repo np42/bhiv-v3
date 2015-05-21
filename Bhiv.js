@@ -259,7 +259,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
           if (hasResponded) throw Bhiv.Error(error || 'Already reponded');
           hasResponded = true;
           if (error) return (runtime.callback.pop() || Bhiv.noop)(Bhiv.Error(error), runtime);
-          if (arguments.length === 2) async.insertOutput(runtime, output);
+          if (arguments.length >= 2) async.insertOutput(runtime, output);
           return runtime.callback.pop()(null, runtime);
         });
       });
@@ -1244,8 +1244,10 @@ Bhiv.extract = function extract(glue, alpha/*, ...*/) {
     }
     var result = new Array(glue.length);
     var args = Array.prototype.slice.call(arguments);
-    args[0] = glue[i];
-    result[i] = extract.apply(this, args);
+    for (var i = 0; i < glue.length; i++) {
+      args[0] = glue[i];
+      result[i] = extract.apply(this, args);
+    }
     return result;
 
   case '[object Object]':
