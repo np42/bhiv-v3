@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.25
- *  Date: 2015-05-21T15:12:00+01:00
+ *  Version: 3.1.26
+ *  Date: 2015-05-28T17:00:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -54,8 +54,8 @@
  *        -> merge the result
  *      - waterfall(<tasks>): do all tasks sequencially, with data replacing the previous one
  *      - bucket(<event>, <outglue>, <end>): retrieve data for an <event> even until the <end> event
- *      - extract(<glue>): extract <glue> pattern from data and keep only it
- *      - keep(<fields>): keep only field list
+ *      - extract(<inglue>, <outpath>): extract <inglue> pattern from data and set to <outpath> or '.'
+ *      - keep(<fields>): keep only listed fields
  *      - end(<data>, <callback>): execute the bee or wrap either the <data> or the <callback>
  *
  *  Bee Context Methods:
@@ -174,7 +174,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       this.require = Bhiv.serve(require);
       break ;
     case 'function':
-      this.require = Bhiv.throttleCache(require, this.modules);
+      this.require = require;
       break ;
     }
     this.typer   = typer;
@@ -251,11 +251,11 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       var async = this;
       if (runtime.status.aborted)
         return runtime.callback.pop()(Bhiv.Error('Aborted at: ' + runtime.id), runtime);
-      this.lookup(runtime, function (error) {
+      this.lookup(runtime, function (error, method) {
         if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
         var data = async.prepare(runtime);
         var hasResponded = false;
-        return async.method.call(data.context, data.input, function (error, output) {
+        return method.call(data.context, data.input, function (error, output) {
           if (hasResponded) throw Bhiv.Error(error || 'Already reponded');
           hasResponded = true;
           if (error) return (runtime.callback.pop() || Bhiv.noop)(Bhiv.Error(error), runtime);
@@ -266,50 +266,32 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     };
 
     this.Asynchronous.prototype.lookup = function (runtime, callback) {
-      var async = this;
-      if (typeof this.method !== 'function') {
-        if (typeof this.fsn === 'string')
-          return this.invokeMethod(runtime, callback);
-        else
-          return callback(Bhiv.Error('Not enough element to execute this task'));
-      } else {
-        return callback();
-      }
+      if (typeof this.method === 'function') return callback(null, this.method);
+      if (typeof this.fsn === 'string') return this.invokeMethod(runtime, callback);
+      return callback(Bhiv.Error('Not enough element to execute this task'));
     };
 
     this.Asynchronous.prototype.prepare = function (runtime) {
-      this.populate();
       var input = this.extractInput(runtime);
       var context = new Context(runtime);
       return { context: context, input: input };
     };
 
     this.Asynchronous.prototype.invokeMethod = function (runtime, callback) {
-      var async = this;
-      options.require.call(runtime, this.fsn, function (err, module) {
-        if (err) return callback(err);
-        if (module == null) {
-          debugger;
-          return callback(Bhiv.Error('method not found: ' + async.fsn, 'ERRFNNOTFOUND'));
-        }
-        if (typeof module === 'function') {
-          async.method = module;
+      var fsn = this.fsn;
+      return options.require.call(runtime, this.fsn, function (err, module) {
+        if (err) {
+          return callback(err);
+        } else if (module == null) {
+          return callback(Bhiv.Error('method not found: ' + fsn, 'ERRFNNOTFOUND'));
+        } else if (typeof module === 'function') {
+          return callback(null, module);
         } else if (typeof module.method === 'function') {
-          async.method = module.method
+          return callback(null, module.method);
         } else {
-          return callback(Bhiv.Error('Unable to define a method: ' + async.fsn));
+          return callback(Bhiv.Error('Unable to define a method: ' + fsn));
         }
-        return callback();
       });
-    };
-
-    this.Asynchronous.prototype.populate = function () {
-      if (!this.fsn) return ;
-      var module = options.modules[this.fsn];
-      if (!module) return ;
-      if (!this.intype && module.intype) module.intype = this.intype;
-      if (!this.outtype && module.outtype) module.outtype = this.outtype;
-      if (!this.scope && module.scope) module.scope = this.scope;
     };
 
     this.Asynchronous.prototype.extractInput = function (runtime) {
@@ -349,11 +331,11 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       var sync = this;
       if (runtime.status.aborted)
         return runtime.callback.pop()(Bhiv.Error('Aborted at: ' + runtime.id), runtime);
-      this.lookup(runtime, function (error) {
+      this.lookup(runtime, function (error, method) {
         if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
         var data = sync.prepare(runtime);
         try {
-          var output = sync.method.call(data.context, data.input);
+          var output = method.call(data.context, data.input);
         } catch (error) {
           return runtime.callback.pop()(error, runtime);
         }
@@ -421,13 +403,8 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
                   failure = error;
                   return (initialRuntime.callback.pop() || Bhiv.noop)(error, initialRuntime);
                 }
-                if (parallel.fromMap) {
-                  initialRuntime.data = runtime.data;
-                  return loop(parallel, space, initialRuntime);
-                } else {
-                  result = Bhiv.merge(result, runtime.data);
-                  return loop(parallel, space, initialRuntime);
-                }
+                result = Bhiv.merge(result, runtime.data);
+                return loop(parallel, space, initialRuntime);
               });
               return task.execute(newRuntime);
             })(parallel.tasks[space.done + space.running]);
@@ -815,7 +792,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       var runtime = bee._createRuntime(data, callback);
       if (this && this.locals) {
         for (var k in this.locals)
-          if (!(k in runtime.locals))
+          if (!(k in runtime.locals)) // TODO check if it necessary
             runtime.locals[k] = this.locals[k];
       }
       if (!ready) {
@@ -1334,7 +1311,7 @@ Bhiv.ingest = function ingest(holder, alpha) {
   case '[object Object]':
     if (alpha.constructor !== Object) return alpha;
     if (!(holder instanceof Object)) return alpha;
-    var result = Object.create(holder.__proto__ || holder);
+    var result = Object.create(holder);
     for (var i in alpha) {
       if (i in holder) result[i] = ingest(holder[i], alpha[i]);
       else result[i] = alpha[i];
