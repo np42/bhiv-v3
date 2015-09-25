@@ -89,7 +89,6 @@
  *    - stacktrace
  *    - integrate the typer
  *    - renew the stack to avoid stack overflow
- *    - split Map Task in two object (Map / Each)
  *
  *  Roadmap v3.3:
  *    - add unabortable sequence (for transactions)
@@ -99,6 +98,8 @@
  *    - codify errors
  *    - fix callback missing error when an error is throwed inside a parallel
  *    - use event emitter instead of the lite one
+ *    - add switch case with pattern matching mecanisme
+ *    - fix Trap behaviour
  *
  */
 
@@ -340,7 +341,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
           return runtime.callback.pop()(error, runtime);
         }
         if (output != null) sync.insertOutput(runtime, output);
-        return runtime.callback.pop()(null, runtime);
+        return setImmediate(runtime.callback.pop(), null, runtime);
       });
     };
 
@@ -1104,12 +1105,16 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
 
 Bhiv.Error = function (msg, code) {
   var error = null;
-  if (msg instanceof Error)
+  if (msg instanceof Error) {
     error = msg;
-  else if (msg instanceof Object && typeof msg.message === 'string')
-    error = new Error(msg.message);
-  else if (typeof msg === 'string')
+  } else if (msg instanceof Object) {
+    if (msg.error instanceof Error)
+      error = msg.error;
+    else if (typeof msg.message === 'string')
+      error = new Error(msg.message);
+  } else if (typeof msg === 'string') {
     error = new Error(msg);
+  }
   var BhivError = function BhivError(code) {
     switch (typeof code) {
     case 'number': case 'string': this.code = code; break ;
@@ -1168,6 +1173,35 @@ Bhiv.setIn = function (target, path, value) {
   return value;
 };
 
+Bhiv.iter = function (collection, iterator) {
+  switch (Object.prototype.toString.call(collection)) {
+  case '[object Object]':
+    for (var i in collection)
+      if (collection.hasOwnProperty(i))
+        iterator.call(collection, collection[i], i);
+    break ;
+  case '[object Array]':
+    for (var i = 0, l = collection.length; i < l; ++i)
+      iterator.call(collection, collection[i], i);
+    break ;
+  }
+};
+
+Bhiv.copy = function (source, target) {
+  switch (Object.prototype.toString.call(source)) {
+  case '[object Object]':
+    if (Object.prototype.toString.call(target) != '[object Object]')
+      target = {};
+    break ;
+  case '[object Array]':
+    if (Object.prototype.toString.call(target) != '[object Array]')
+      target = [];
+    break ;
+  }
+  Bhiv.iter(source, function (child, index) { target[index] = child; });
+  return target;
+};
+
 Bhiv.match = function match(pattern, alpha) {
   switch (Object.prototype.toString.call(pattern)) {
   case '[object Array]': case '[Object arguments]':
@@ -1179,11 +1213,10 @@ Bhiv.match = function match(pattern, alpha) {
     return true;
   case '[object Object]':
     if (!(alpha instanceof Object)) return false;
-    for (var i in pattern)
-      if (!alpha)
-        return false;
-    else if (!match(pattern[i], alpha[i]))
-      return false;
+    for (var i in pattern) {
+      if (!alpha) return false;
+      if (!match(pattern[i], alpha[i])) return false;
+    }
     return true;
   case '[object Function]':
     switch (pattern) {
@@ -1481,7 +1514,7 @@ Bhiv.EventEmitter = function () {
   this.one = function (event, listener) {
     return this.on(event, function one(data) {
       ee.off(event, one);
-      return listener(data);
+      return listener.call(this, data);
     });
   };
 
