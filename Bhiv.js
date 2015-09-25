@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.27
- *  Date: 2015-06-02T17:00:00+01:00
+ *  Version: 3.1.28
+ *  Date: 2015-09-25T16:00:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
