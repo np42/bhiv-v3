@@ -1,6 +1,6 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.28
+ *  Version: 3.1.29
  *  Date: 2015-09-25T16:00:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
@@ -1110,9 +1110,11 @@ Bhiv.Error = function (msg, code) {
   } else if (msg instanceof Object) {
     if (msg.error instanceof Error)
       error = msg.error;
+    else if (typeof msg.error == 'string')
+      error = new Error(msg.error);
     else if (typeof msg.message === 'string')
       error = new Error(msg.message);
-  } else if (typeof msg === 'string') {
+  } else {
     error = new Error(msg);
   }
   var BhivError = function BhivError(code) {
