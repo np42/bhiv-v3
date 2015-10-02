@@ -1,6 +1,6 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.30
+ *  Version: 3.1.31
  *  Date: 2015-09-25T16:00:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
@@ -1301,7 +1301,9 @@ Bhiv.extract = function extract(glue, alpha/*, ...*/) {
   case '[object String]':
     var replacement = null;
     var alphaChain = Array.prototype.slice.call(arguments, 1);
+    var hasMagic = false;
     var result = glue.replace(/(^\$\{[^\}]+\}$)|(\$\{[^\}]+\})/g, function (_, full, partial) {
+      hasMagic = true;
       if (full) {
         if (alpha == null) return '';
         var path = full.substring(2, full.length - 1);
@@ -1319,6 +1321,7 @@ Bhiv.extract = function extract(glue, alpha/*, ...*/) {
     });
     if (result !== '') return result;
     if (replacement != null) return replacement;
+    if (hasMagic) return null;
     return glue;
 
   case '[object Date]':
