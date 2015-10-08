@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.31
- *  Date: 2015-09-25T16:00:00+01:00
+ *  Version: 3.1.32
+ *  Date: 2015-10-08T12:00:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -1476,6 +1476,30 @@ Bhiv.waiter = function () {
     }
   };
   return waiter;
+};
+
+Bhiv.callWhenReady = function (context) {
+  var ready = false;
+  var toCall = [];
+  var args = null;
+  var caller = function (fn, ctx) {
+    if (ready) return fn.apply(ctx || context || null, args);
+    else toCall.push([fn, ctx || context]);
+  };
+  caller.ready = function () {
+    if (ready) throw new Error('Waiter already ready');
+    ready = true;
+    args = Array.prototype.slice.call(arguments);
+    args.unshift(null);
+    while (toCall.length > 0) caller.apply(null, toCall.shift());
+  };
+  caller.fail = function (error) {
+    if (ready) throw new Error('Waiter already ready');
+    ready = true;
+    args = [error];
+    while (toCall.length > 0) caller.apply(null, toCall.shift());
+  };
+  return caller;
 };
 
 Bhiv.EventEmitter = function () {
