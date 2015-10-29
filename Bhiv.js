@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.32
- *  Date: 2015-10-08T12:00:00+01:00
+ *  Version: 3.1.33
+ *  Date: 2015-10-29T11:37:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -136,7 +136,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
         if (module.input) task.input = module.input;
       }
     } else if (typeof work === 'function') {
-      var task = new Task.Asynchronous();
+      var task = work.length < 2 ? new Task.Synchronous() : new Task.Asynchronous();
       task.method = work;
       task.fsn = work.name || Bhiv.generateId('Function.Anonymous');
     } else if (typeof work === 'object') {
