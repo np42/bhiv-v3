@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.33
- *  Date: 2015-10-29T11:37:00+01:00
+ *  Version: 3.1.34
+ *  Date: 2015-11-18T11:23:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -256,6 +256,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
         if (error) return (runtime.callback.pop() || Bhiv.noop)(error, runtime);
         var data = async.prepare(runtime);
         var hasResponded = false;
+        // if (method.length != 2) warn !!
         return method.call(data.context, data.input, function (error, output) {
           if (hasResponded) throw Bhiv.Error(error || 'Already reponded');
           hasResponded = true;
@@ -308,7 +309,11 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       if (this.replace) {
         runtime.data = alpha;
       } else {
-        runtime.data = Bhiv.ingest(runtime.data, alpha);
+        if (alpha != null) {
+          runtime.data = Bhiv.ingest(runtime.data, alpha);
+        } else {
+          /* no replacement for runtime.data */
+        }
       }
     };
 
@@ -340,7 +345,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
         } catch (error) {
           return runtime.callback.pop()(error, runtime);
         }
-        if (output != null) sync.insertOutput(runtime, output);
+        sync.insertOutput(runtime, output);
         return setImmediate(runtime.callback.pop(), null, runtime);
       });
     };
@@ -1026,6 +1031,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     var task = new Task.Synchronous();
     task.replace = true;
     task.method = function (data) {
+      debugger;
       var extract = Bhiv.extract(glue, data);
       if (!outpath) return extract;
       Bhiv.setIn(data, outpath, extract);
