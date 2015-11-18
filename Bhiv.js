@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.34
- *  Date: 2015-11-18T11:23:00+01:00
+ *  Version: 3.1.35
+ *  Date: 2015-11-18T18:42:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -779,7 +779,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     };
 
     this._finalize = function () {
-      delete this._breadcrumb;
+      this._breadcrumb = null;
       for (var keyword in Bee.prototype)
         bee[keyword] = functionFinalized;
     };
@@ -1436,7 +1436,7 @@ Bhiv.throttle = function (method) {
     pending[data] = [callback];
     return method.call(this, data, function (err, value) {
       var listeners = pending[data];
-      delete pending[data];
+      pending[data] = null;
       for (var i = 0; i < listeners.length; i++)
         listeners[i].apply(this, arguments);
     });
