@@ -1031,7 +1031,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     var task = new Task.Synchronous();
     task.replace = true;
     task.method = function (data) {
-      debugger;
       var extract = Bhiv.extract(glue, data);
       if (!outpath) return extract;
       Bhiv.setIn(data, outpath, extract);
