@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.35
- *  Date: 2015-11-18T18:42:00+01:00
+ *  Version: 3.1.36
+ *  Date: 2016-04-26T16:16:00+01:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -795,6 +795,8 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       if (bee._breadcrumb) throw Bhiv.Error('This bee is not finalized');
       var workflow = bee._workflow;
       if (workflow == null) return callback(null, data);
+      if (typeof callback.createCallback == 'function')
+        callback = callback.createCallback();
       var runtime = bee._createRuntime(data, callback);
       if (this && this.locals) {
         for (var k in this.locals)
@@ -995,6 +997,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
   /* .Trap */
   this.Bee.prototype.Trap = function (pattern, work, inglue, outglue) {
     var task = parseTask(work, inglue, outglue);
+    task.replace = true;
     var trap = new Task.Trap(pattern, task);
     return this.then(trap);
   };
@@ -1577,4 +1580,35 @@ Bhiv.makeListener = function (pool) {
   };
 
   return listener;
+};
+
+Bhiv.Template = function BhivTemplate(template, replacements) {
+  this.template = template;
+  this.replacements = replacements;
+};
+
+Bhiv.Template.prototype.call = function (locals) {
+  var result = this.template;
+  for (var i = 0; i < this.replacements.length; i++) {
+    var e = this.replacements[i];
+    result = result.replace(e.pattern, Bhiv.getIn(locals, e.path));
+  }
+  return result;
+};
+
+Bhiv.compute = function compute(source, locals) {
+  switch (arguments.length) {
+  default: throw new Error('Bad usage');
+  case 2:
+    var obj = compute(source);
+    return obj.call(locals);
+  case 1:
+    var replacements = [];
+    var template = source.replace(/\$\{([^\}]+)\}/g, function (_, path) {
+      var id = '__' + Bhiv.generateId() + '__';
+      replacements.push({ path: path, pattern: new RegExp(id, 'g') });
+      return id;
+    });
+    return new Bhiv.Template(template, replacements);
+  }
 };
