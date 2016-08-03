@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.37
- *  Date: 2016-04-26T16:16:00+01:00
+ *  Version: 3.1.38
+ *  Date: 2016-08-03T16:18:50+02:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -853,7 +853,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     task.replace = true;
     task.method = function (data) {
       var extract = Bhiv.extract(glue, data);
-      debugger;
       this.set(path, extract);
       return data;
     };
