@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.38
- *  Date: 2016-08-03T16:18:50+02:00
+ *  Version: 3.1.39
+ *  Date: 2016-08-04T16:00:00+02:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -799,7 +799,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       if (bee._breadcrumb) throw Bhiv.Error('This bee is not finalized');
       var workflow = bee._workflow;
       if (workflow == null) return callback(null, data);
-      if (typeof callback.createCallback == 'function')
+      if (typeof callback != 'function' && typeof callback.createCallback == 'function')
         callback = callback.createCallback();
       var runtime = bee._createRuntime(data, callback);
       if (this && this.locals) {
