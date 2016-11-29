@@ -1263,7 +1263,32 @@ Bhiv.match = function match(pattern, alpha) {
   }
 };
 
-// FIXME: fix multi source searching
+Bhiv.process = function process(pattern, sources) {
+  var replacement = null;
+  var hasMagic = false;
+  var result = pattern.replace(/(^\$\{[^\}]+\}$)|(\$\{[^\}]+\})/g, function (_, full, partial) {
+    hasMagic = true;
+    if (full) {
+      if (alpha == null) return '';
+      var path = full.substring(2, full.length - 1);
+      for (var i = 0; replacement == null && i < alphaChain.length; i++)
+        replacement = Bhiv.getIn(alphaChain[i], path);
+      return '';
+    } else {
+      var path = partial.substring(2, partial.length - 1);
+      var result = null;
+      for (var i = 0; result == null && i < alphaChain.length; i++)
+        result = Bhiv.getIn(alphaChain[i], path);
+      if (typeof result === 'string') return result;
+      return JSON.stringify(result);
+    }
+  });
+  if (result !== '') return result;
+  if (replacement != null) return replacement;
+  if (hasMagic) return null;
+  return pattern;
+};
+
 Bhiv.extract = function extract(glue, alpha/*, ...*/) {
   switch (Object.prototype.toString.call(glue)) {
 
@@ -1289,64 +1314,24 @@ Bhiv.extract = function extract(glue, alpha/*, ...*/) {
   case '[object Object]':
     var result = {};
     for (var i in glue) {
-      if (/\$\{[^\}]+\}/.test(i)) {
-        if (alpha instanceof Array) {
-          for (var j = 0; j < alpha.length; j++) {
-            var key = extract(i, alpha[j]);
-            var value = extract(glue[i], alpha[j]);
-            result[key] = Bhiv.merge(result[key], value);
-          }
+      var args = Array.prototype.slice.call(arguments);
+      args[0] = glue[i];
+      var key = Bhiv.process(i);
+      var value = extract.apply(this, args);
+      if (key in result) {
+        if (result[key] instanceof Array) {
+          result[key].push(value);
         } else {
-          var args = Array.prototype.slice.call(arguments);
-          args[0] = i;
-          var key = extract.apply(this, args);
-          args[0] = glue[i];
-          var value = extract.apply(this, args);
-          result[key] = value;
+          result[key] = Bhiv.ingest(result[key], value);
         }
       } else {
-        var args = Array.prototype.slice.call(arguments);
-        args[0] = glue[i];
-        var key = i;
-        var value = extract.apply(this, args);
-        if (key in result) {
-          if (result[key] instanceof Array) {
-            result[key].push(value);
-          } else {
-            result[key] = Bhiv.ingest(result[key], value);
-          }
-        } else {
-          result[key] = value;
-        }
+        result[key] = value;
       }
     }
     return result;
 
   case '[object String]':
-    var replacement = null;
-    var alphaChain = Array.prototype.slice.call(arguments, 1);
-    var hasMagic = false;
-    var result = glue.replace(/(^\$\{[^\}]+\}$)|(\$\{[^\}]+\})/g, function (_, full, partial) {
-      hasMagic = true;
-      if (full) {
-        if (alpha == null) return '';
-        var path = full.substring(2, full.length - 1);
-        for (var i = 0; replacement == null && i < alphaChain.length; i++)
-          replacement = Bhiv.getIn(alphaChain[i], path);
-        return '';
-      } else {
-        var path = partial.substring(2, partial.length - 1);
-        var result = null;
-        for (var i = 0; result == null && i < alphaChain.length; i++)
-          result = Bhiv.getIn(alphaChain[i], path);
-        if (typeof result === 'string') return result;
-        return JSON.stringify(result);
-      }
-    });
-    if (result !== '') return result;
-    if (replacement != null) return replacement;
-    if (hasMagic) return null;
-    return glue;
+    return Bhiv.process(glue, Array.prototype.slice.call(arguments, 1));
 
   case '[object Date]':
     return new Date(glue.toISOSTring());
