@@ -1269,16 +1269,16 @@ Bhiv.process = function process(pattern, sources) {
   var result = pattern.replace(/(^\$\{[^\}]+\}$)|(\$\{[^\}]+\})/g, function (_, full, partial) {
     hasMagic = true;
     if (full) {
-      if (alpha == null) return '';
+      if (sources[0] == null) return '';
       var path = full.substring(2, full.length - 1);
-      for (var i = 0; replacement == null && i < alphaChain.length; i++)
-        replacement = Bhiv.getIn(alphaChain[i], path);
+      for (var i = 0; replacement == null && i < sources.length; i++)
+        replacement = Bhiv.getIn(sources[i], path);
       return '';
     } else {
       var path = partial.substring(2, partial.length - 1);
       var result = null;
-      for (var i = 0; result == null && i < alphaChain.length; i++)
-        result = Bhiv.getIn(alphaChain[i], path);
+      for (var i = 0; result == null && i < sources.length; i++)
+        result = Bhiv.getIn(sources[i], path);
       if (typeof result === 'string') return result;
       return JSON.stringify(result);
     }
