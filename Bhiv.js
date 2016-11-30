@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.39
- *  Date: 2016-08-04T16:00:00+02:00
+ *  Version: 3.1.40
+ *  Date: 2016-11-30T19:00:00+02:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -545,6 +545,25 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
         };
       }
       return runtime.callback.pop()(null, runtime);
+    };
+
+    /* Escape */
+    this.Escape = function EscapeTask(condition, glue) {
+      this.condition = condition;
+      this.glue = glue;
+    };
+
+    this.Escape.prototype = new this.Simple();
+
+    this.Escape.prototype.execute = function (runtime) {
+      var result = Bhiv.extract(this.condition, runtime.data, runtime.locals);
+      if (result) {
+        if (this.glue != null)
+          runtime.data = Bhiv.extract(this.glue, runtime.data, runtime.locals);
+        return runtime.callback.shift()(null, runtime);
+      } else {
+        return runtime.callback.pop()(null, runtime);
+      }
     };
 
     /* Merge */
@@ -1104,6 +1123,13 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     var task = parseTask(function (data, callback) {
       return callback(null, Bhiv.flatten(data));
     });
+    return this.then(task);
+  };
+
+
+  /* .breakIf */
+  this.Bee.prototype.breakIf = function (pattern, glue) {
+    var task = new Task.Escape(pattern, glue);
     return this.then(task);
   };
 
