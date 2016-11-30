@@ -4,7 +4,7 @@
   "description": "Extended asynchronous execution controller with composer syntax",
   "main": "Bhiv.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./node_modules/.bin/mocha --reporter spec"
   },
   "repository": {
     "type": "git",
@@ -30,5 +30,8 @@
   "bugs": {
     "url": "https://github.com/np42/bhiv/issues"
   },
-  "homepage": "https://github.com/np42/bhiv"
+  "homepage": "https://github.com/np42/bhiv",
+  "devDependencies": {
+    "mocha": "^3.2.0"
+  }
 }
