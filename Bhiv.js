@@ -1,7 +1,7 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.40
- *  Date: 2016-11-30T19:00:00+02:00
+ *  Version: 3.1.41
+ *  Date: 2016-12-07T12:00:00+02:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
  *  Maintainer: Nicolas Pelletier (nicolas [dot] pelletier [at] wivora [dot] fr)
@@ -422,6 +422,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     this.Map = function MapTask() {
       this.type     = MapTask;
       this.source   = null;
+      this.single   = false;
       this.key      = null;
       this.value    = null;
       this.task     = new Task.Waterfall();
@@ -435,8 +436,16 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
         if (error) return runtime.callback.pop()(null, runtime);
       var map    = this;
       var space  = { done: 0, running: 0, tasks: [], failure: null, result: null };
+      if (map.source.indexOf('!') === 0) {
+        map.source = map.source.substr(1);
+        if (map.source == '') map.source = '.';
+        map.single = true;
+      }
       var source = Bhiv.getIn(runtime.data, map.source);
-      if (source instanceof Array) {
+      if (map.single) {
+        space.result = null;
+        space.tasks.push({ value: source });
+      } else if (source instanceof Array) {
         space.result = new Array(source.length);
         for (var i = 0; i < source.length; i++)
           space.tasks.push({ key: i, value: source[i] });
@@ -458,10 +467,14 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       space.running += 1;
       var task = space.tasks.shift();
       var newRuntime = runtime.fork(false);
-      var iterator = Object.create(runtime.data);
-      if (typeof map.key === 'string') iterator[map.key] = task.key;
-      if (typeof map.value === 'string') iterator[map.value] = task.value;
-      newRuntime.data = Object.create(iterator);
+      if (map.key == null && map.value == null) {
+        newRuntime.data = task.value;
+      } else {
+        var iterator = Object.create(runtime.data);
+        if (typeof map.key === 'string') iterator[map.key] = task.key;
+        if (typeof map.value === 'string') iterator[map.value] = task.value;
+        newRuntime.data = Object.create(iterator);
+      }
       newRuntime.callback.push(function (error, newRuntime) {
         space.running -= 1;
         space.done += 1;
@@ -487,23 +500,27 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     };
 
     this.Map.prototype.processResult = function (runtime, space, task, data) {
-      if (data && typeof data === 'object') {
-        if (data.contructor === Array) {
-          return space.result[task.key] = data.slice();
-        } else {
-          var record = task.value  && typeof task.value === 'object' ? Object.create(task.value) : {};
-          var altered = false;
-          for (var key in data) {
-            if (data.hasOwnProperty(key)) {
-              record[key] = data[key];
-              altered = true;
+      if (this.single) {
+        return space.result = data;
+      } else {
+        if (data && typeof data === 'object') {
+          if (data.contructor === Array) {
+            return space.result[task.key] = data.slice();
+          } else {
+            var record = task.value && typeof task.value === 'object' ? Object.create(task.value) : {};
+            var altered = false;
+            for (var key in data) {
+              if (data.hasOwnProperty(key)) {
+                record[key] = data[key];
+                altered = true;
+              }
             }
+            if (!altered) return space.result[task.key] = task.value;
+            return space.result[task.key] = record;
           }
-          if (!altered) return space.result[task.key] = task.value;
-          return space.result[task.key] = record;
         }
+        return space.result[task.key] = data;
       }
-      return space.result[task.key] = data;
     };
 
     /* Each */
@@ -968,6 +985,21 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     this.then(map);
     this._breadcrumb.add(map.task);
     return this;
+  };
+
+  /* .map */
+  this.Bee.prototype.map = function (source, work, inglue, outglue) {
+    var map    = new Task.Map();
+    map.source = source;
+    map.task   = parseTask(work, inglue, outglue);
+    map.task.replace = true;
+
+    if (this._breadcrumb.has(Task.Concurent))
+      map.max = 1;
+
+    this.then(map);
+    this._breadcrumb.add(map.task);
+    return this.close();
   };
 
   /* .Each */
