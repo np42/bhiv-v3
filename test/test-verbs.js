@@ -103,6 +103,18 @@ describe('Testing verbs', function () {
         });
     });
 
+    it('test 4', function (cb) {
+      new Bee()
+        .pipe(function (n) { return n * 3; })
+        .breakIf(true)
+        .pipe(function (n) { return n * 6; })
+        .end(14, function (err, result) {
+          assert.ifError(err);
+          assert.deepEqual(result, 42);
+          return cb();
+        });
+    });
+
   });
 
   describe('trap', function () {
