@@ -105,4 +105,33 @@ describe('Testing verbs', function () {
 
   });
 
+  describe('trap', function () {
+
+    it('test 1', function (cb) {
+      new Bee()
+        .trap('test', function (f) { return 42; })
+        .pipe(function () { throw 'test'; })
+        .end(null, function (err, result) {
+          assert.ifError(err);
+          assert.deepEqual(result, 42);
+          return cb();
+        });
+    });
+
+    it('test 2', function (cb) {
+      new Bee()
+        .Trap({ message: 'test' })
+        .  pipe(function (f) { return 6; })
+        .  pipe(function (n) { return n * 7; })
+        .close()
+        .pipe(function () { throw new Error('test'); })
+        .end(null, function (err, result) {
+          assert.ifError(err);
+          assert.deepEqual(result, 42);
+          return cb();
+        });
+    });
+
+  });
+
 });
