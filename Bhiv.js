@@ -1,6 +1,6 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.41
+ *  Version: 3.1.42
  *  Date: 2016-12-07T12:00:00+02:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
@@ -555,7 +555,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
         var parentCallback = runtime.callback[parentIndex];
         runtime.callback[parentIndex] = function TrapCallback(error, runtime) {
           if (!error) return parentCallback(null, runtime);
-          if (!Bhiv.match(trap.pattern, error)) return parentCallback(error, runtime);
+          if (!Bhiv.match(trap.pattern, error.error || error)) return parentCallback(error, runtime);
           runtime.callback.push(parentCallback);
           runtime.data = Bhiv.ingest(runtime.data, { error: error });
           return trap.task.execute(runtime);
@@ -1418,6 +1418,7 @@ Bhiv.ingest = function ingest(holder, alpha) {
     if (!(holder instanceof Object)) return alpha;
     var result = Object.create(holder);
     for (var i in alpha) {
+      if (holder[i] === alpha[i]) continue ;
       if (i in holder) result[i] = ingest(holder[i], alpha[i]);
       else result[i] = alpha[i];
     }

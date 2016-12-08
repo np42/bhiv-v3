@@ -144,6 +144,19 @@ describe('Testing verbs', function () {
         });
     });
 
+    it('test 3', function () {
+      new Bee()
+        .trap({ message: 'test' }, function (f) { return 42; })
+        .Map('.', 'k', 'v')
+        .  pipe(function () { throw new Error('test'); })
+        .close()
+        .end(['muk'], function (err, result) {
+          assert.ifError(err);
+          assert.deepEqual(result, 42);
+          return cb();
+        });
+    });
+
   });
 
 });
