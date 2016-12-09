@@ -44,7 +44,7 @@
  *      - Trap(<pattern>, <work>, <inglue>, <outglue>): do <work> if an error match <pattern>
  *      - Map(<path>, <key>, <value>): iter on <path> and do work for each elements
  *        -> replace the old list value by result
- *      - Go(<work>, <inglue>, <outglue>): create a une parallel waterfall
+ *      - Go([<replacement_field>[, ...]]): create a une parallel waterfall
  *      - close(<properties>): close task, and set properties
  *      - emit(<event>, <data>): to emit an event (maybe catched by a bucket)
  *      - add(<glue>): allow you to add some thing in the flow
@@ -355,13 +355,25 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     this.Waterfall = function WaterfallTask() {
       this.type  = WaterfallTask;
       this.tasks = [];
+      this.merge = null;
     };
 
     this.Waterfall.prototype = new this.Simple();
 
     this.Waterfall.prototype.execute = function (runtime) {
+      var initialData = runtime.data;
       return (function loop(waterfall, index, runtime) {
         if (waterfall.tasks.length === index) {
+          if (waterfall.merge != null) {
+            debugger;
+            if (initialData == null || typeof initialData != 'object') initialData = {};
+            for (var i = 0; i < waterfall.merge.length; i++) {
+              var path = waterfall.merge[i];
+              Bhiv.setIn(initialData, path, Bhiv.getIn(runtime.data, path));
+            }
+          } else {
+            runtime.data = Bhiv.ingest(initialData, runtime.data);
+          }
           return runtime.callback.pop()(null, runtime);
         } else {
           runtime.callback.push(function WaterfallCallback(error, runtime) {
@@ -378,30 +390,24 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       this.type    = ParallelTask;
       this.tasks   = [];
       this.max     = max || Infinity;
-      this.replace = false;
+      this.fields  = null;
     };
 
     this.Parallel.prototype = new this.Concurent();
 
     this.Parallel.prototype.execute = function (initialRuntime) {
       var failure = null;
-      var result = null;
       var space = { done: 0, running: 0 };
       return (function loop(parallel, space, runtime) {
         if (failure) {
           return ; // kill the loop
         } else if (space.done === parallel.tasks.length) {
-          if (parallel.replace) {
-            initialRuntime.data = result;
-          } else {
-            initialRuntime.data = Bhiv.ingest(initialRuntime.data, result);
-          }
           return initialRuntime.callback.pop()(null, initialRuntime);
         } else {
           while (space.running < parallel.max && space.done + space.running < parallel.tasks.length)
             (function (task) {
               space.running += 1;
-              var newRuntime = runtime.fork();
+              var newRuntime = runtime.fork(false, true);
               newRuntime.callback.push(function ParallelCallback(error, runtime) {
                 space.running -= 1;
                 space.done += 1;
@@ -409,7 +415,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
                   failure = error;
                   return (initialRuntime.callback.pop() || Bhiv.noop)(error, initialRuntime);
                 }
-                result = Bhiv.merge(result, runtime.data);
                 return loop(parallel, space, initialRuntime);
               });
               return task.execute(newRuntime);
@@ -728,14 +733,14 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
     });
   };
 
-  Runtime.prototype.fork = function (keepCallbacks) {
+  Runtime.prototype.fork = function (keepCallbacks, keepData) {
     var runtime = new Runtime(this.id);
     for (var key in this) {
       if (!this.hasOwnProperty(key)) continue ;
       if (key in runtime) continue ;
       runtime[key] = this[key];
     }
-    if (runtime.data instanceof Object)
+    if (runtime.data instanceof Object && !keepData)
       runtime.data = Object.create(runtime.data);
     runtime.callback = keepCallbacks ? this.callback : [];
     return runtime;
@@ -1018,48 +1023,41 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
   };
 
   /* .Go */
-  this.Bee.prototype.Go = parseTaskPipe(function (task) {
-    if (this._breadcrumb.has(Task.Parallel)) {
-      // is in parallel
-      var parallel = this._breadcrumb.get(Task.Parallel);
-      parallel.tasks.push(task);
-      this._breadcrumb.remove(Task.Parallel);
-      this._breadcrumb.add(task);
+  this.Bee.prototype.Go = function () {
+    var fields = Array.prototype.slice.call(arguments);
+    var waterfall = new Task.Waterfall();
+    if (fields.length > 0) waterfall.merge = fields;
 
-    } else {
+    if (this._breadcrumb.has(Task.Parallel) == false) {
       // create a new parallel
       var parallel = new Task.Parallel();
-      parallel.tasks.push(task);
+      parallel.tasks.push(waterfall);
 
       if (this._breadcrumb.has(Task.Waterfall, [Task.Parallel])) {
         // is in waterfall
-        var waterfall = this._breadcrumb.get(Task.Waterfall);
-        waterfall.tasks.push(parallel);
+        var parent = this._breadcrumb.get(Task.Waterfall);
+        parent.tasks.push(parallel);
         this._breadcrumb.remove(Task.Waterfall);
-        this._breadcrumb.add(parallel, task);
+        this._breadcrumb.add(parallel, waterfall);
 
       } else if (this._workflow == null) {
         // is the first task
         this._workflow = parallel;
-        this._breadcrumb.add(parallel, task);
-
-      } else if (this._breadcrumb.count() <= 1) {
-        // is the second task then wrapped into a waterfall
-        var last = this._workflow;
-        var waterfall = new Task.Waterfall();
-        if (last != null) waterfall.tasks.push(last)
-        waterfall.tasks.push(task);
-        this._workflow = waterfall;
-        this._breadcrumb.remove();
-        this._breadcrumb.add(waterfall, parallel, task);
+        this._breadcrumb.add(parallel, waterfall);
 
       } else {
         debugger;
         throw Bhiv.Error('usage of "go" in unknown situation');
       }
+    } else {
+      // is in parallel
+      var parallel = this._breadcrumb.get(Task.Parallel);
+      parallel.tasks.push(waterfall);
+      this._breadcrumb.remove(Task.Parallel);
+      this._breadcrumb.add(waterfall);
     }
     return this;
-  });
+  };
 
   /* .Trap */
   this.Bee.prototype.Trap = function (pattern, work, inglue, outglue) {

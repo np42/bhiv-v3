@@ -159,4 +159,21 @@ describe('Testing verbs', function () {
 
   });
 
+  describe('go', function () {
+
+    it('test 1', function (cb) {
+      new Bee()
+        .Go('a').pipe(function (n, c) { setTimeout(function () { c(null, { a: { r: 42 } }); }, 5); })
+        .Go('b').pipe(function (n, c) { setTimeout(function () { c(null, { b: { r: 42 } }); }, 1); })
+        .Go('c').pipe(function (n, c) { setTimeout(function () { c(null, { c: { r: 42 } }); }, 3); })
+        .close()
+        .end({ a: { s: 'bad' }, b: 'muk', d: 'youpi' }, function (err, result) {
+          assert.ifError(err);
+          assert.deepEqual(result, { a: { r: 42 }, b: { r: 42 }, c: { r: 42 }, d: 'youpi' });
+          return cb();
+        });
+    });
+
+  });
+
 });
