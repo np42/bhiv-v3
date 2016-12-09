@@ -365,7 +365,6 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       return (function loop(waterfall, index, runtime) {
         if (waterfall.tasks.length === index) {
           if (waterfall.merge != null) {
-            debugger;
             if (initialData == null || typeof initialData != 'object') initialData = {};
             for (var i = 0; i < waterfall.merge.length; i++) {
               var path = waterfall.merge[i];
