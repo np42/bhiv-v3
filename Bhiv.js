@@ -1,6 +1,6 @@
 /*!
  *  Name: Bhiv
- *  Version: 3.1.43
+ *  Version: 3.1.44
  *  Date: 2016-12-07T12:00:00+02:00
  *  Description: Extended asynchronous execution controller with composer syntax
  *  Author: Nicolas Pelletier
@@ -364,13 +364,13 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
       var initialData = runtime.data;
       return (function loop(waterfall, index, runtime) {
         if (waterfall.tasks.length === index) {
-          if (waterfall.merge != null) {
+          if (waterfall.merge instanceof Array) {
             if (initialData == null || typeof initialData != 'object') initialData = {};
             for (var i = 0; i < waterfall.merge.length; i++) {
               var path = waterfall.merge[i];
               Bhiv.setIn(initialData, path, Bhiv.getIn(runtime.data, path));
             }
-          } else {
+          } else if (waterfall.merge === true) {
             runtime.data = Bhiv.ingest(initialData, runtime.data);
           }
           return runtime.callback.pop()(null, runtime);
@@ -1025,7 +1025,7 @@ var Bhiv = globalize(function Bhiv(require, locals, typer) {
   this.Bee.prototype.Go = function () {
     var fields = Array.prototype.slice.call(arguments);
     var waterfall = new Task.Waterfall();
-    if (fields.length > 0) waterfall.merge = fields;
+    waterfall.merge = fields.length > 0 ? fields : true;
 
     if (this._breadcrumb.has(Task.Parallel) == false) {
       // create a new parallel
@@ -1414,11 +1414,14 @@ Bhiv.ingest = function ingest(holder, alpha) {
     if (alpha.constructor !== Object) return alpha;
     if (!(holder instanceof Object)) return alpha;
     var result = Object.create(holder);
+    var hasAssignation = false;
     for (var i in alpha) {
       if (holder[i] === alpha[i]) continue ;
       if (i in holder) result[i] = ingest(holder[i], alpha[i]);
       else result[i] = alpha[i];
+      hasAssignation = true;
     }
+    if (!hasAssignation) return result;
     if (holder.constructor !== Object) return result;
     for (var i in holder) {
       if (!holder.hasOwnProperty(i)) continue ;
